@@ -1,30 +1,34 @@
-from typing import Union
-
+import uvicorn, json, os
 from fastapi import FastAPI
-
-import shutil
-import tempfile
-
-from fastapi import APIRouter
-from pyspark.context import SparkContext
-from pyspark.sql.session import SparkSession
-from starlette.responses import FileResponse
-import pyspark.sql.functions as F
+from db import password, username
+# from pyspark.context import SparkContext
+# from pyspark.sql.session import SparkSession
 
 app = FastAPI()
-# router = APIRouter()
-sc = SparkContext('local')
-spark = SparkSession(sc)
 
-df = spark.read.option("header",True).csv("../data/all_data_csv")
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+SQLALCHEMY_DATABASE_URL = f"postgresql://{username}:{password}@postgres/postgres"
+
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
 
 @app.get("/")
-def read_root():
+async def read_root():
     return {"Hello": "World"}
 
 
-#clase chemical_list_json():
-
 @app.post("/get_chemical_data/{chemical_name}")
-def get_chemical_data(chemical_name: str):
+async def get_chemical_data(chemical_name: str):
     return df.filter(F.col('molecule_name') == f"{chemical_name}").toJSON().map(eval).collect()
+
+
+# if __name__ == "__main__":
+#     uvicorn.run('main:app', host='0.0.0.0', port=8515)
